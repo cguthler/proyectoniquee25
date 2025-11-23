@@ -9,7 +9,7 @@ import os, psycopg2, cloudinary
 from cloudinary.uploader import upload as cld_upload
 from dotenv import load_dotenv
 load_dotenv()
-
+DATABASE_URL = "postgresql://neondb_owner:npg_FCk16HNmWiJg@ep-old-pond-ahmp5j7p-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"
 RENDER = os.getenv("RENDER") == "true"   # variable de entorno
 if RENDER:
     cloudinary.config(
@@ -32,10 +32,11 @@ PDF_PASSWORD = "guthler"   # <-- cambia aquí tu clave
 # ---------- BD ----------
 def init_db():
     conn = psycopg2.connect(os.getenv("SUPABASE_URI")) if RENDER else sqlite3.connect("jugadores.db")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS jugadores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             nombre TEXT,
             anio_nacimiento INTEGER,
             posicion TEXT,
@@ -71,9 +72,9 @@ def init_db():
 @app.route("/")
 def index():
     init_db()
-    conn = sqlite3.connect("jugadores.db")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
-    rows = cursor.execute("SELECT * FROM jugadores ORDER BY id DESC").fetchall()
+    rows = cursor.execute("SELECT id, nombre, edad, posicion, goles, asistencias, imagen FROM jugadores ORDER BY id DESC").fetchall()
     conn.close()
     return render_template_string(INDEX_HTML, jugadores=rows, PDF_PASSWORD=PDF_PASSWORD)
 
@@ -93,7 +94,7 @@ def admin_panel():
         return redirect(url_for("admin_login"))
     conn = sqlite3.connect("jugadores.db")
     cursor = conn.cursor()
-    rows = cursor.execute("SELECT * FROM jugadores ORDER BY id DESC").fetchall()
+    rows = cursor.execute("SELECT id, nombre, edad, posicion, goles, asistencias, imagen FROM jugadores ORDER BY id DESC").fetchall()
     conn.close()
     return render_template_string(ADMIN_PANEL_HTML, jugadores=rows)
 
@@ -118,11 +119,11 @@ def guardar():
                 path = os.path.join(UPLOAD_IMG, filename)
                 file.save(path)
                 imagen = filename
-    conn = sqlite3.connect("jugadores.db")
+    conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO jugadores (nombre, anio_nacimiento, posicion, goles, asistencias, imagen, fecha_ingreso, pdf) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, int(anio), posicion, int(goles), int(asistencias), imagen, date.today().isoformat(), "")
+        "INSERT INTO jugadores (nombre, edad, posicion, goles, asistencias, imagen) VALUES (%s, %s, %s, %s, %s, %s)",
+        (nombre, int(anio), posicion, int(goles), int(asistencias), imagen)
     )
     conn.commit()
     conn.close()
@@ -132,7 +133,7 @@ def guardar():
 def subir_pdf(jugador_id):
     file = request.files["pdf"]
     if file and file.filename.endswith(".pdf"):
-        conn = sqlite3.connect("jugadores.db") if not RENDER else psycopg2.connect(os.getenv("SUPABASE_URI"))
+        conn = psycopg2.connect(DATABASE_URL)
         cursor = conn.cursor()
         cursor.execute(
             "SELECT nombre FROM jugadores WHERE id = %s" if RENDER else "SELECT nombre FROM jugadores WHERE id = ?",

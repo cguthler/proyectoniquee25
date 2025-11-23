@@ -1,16 +1,17 @@
-import sqlite3
+import psycopg2
 from datetime import date
 
-conn = sqlite3.connect("jugadores.db")
-cursor = conn.cursor()
+# URI de Neon (ya la tenés)
+DATABASE_URL = "postgresql://neondb_owner:npg_FCk16HNmWiJg@ep-old-pond-ahmp5j7p-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"
 
+# Datos de jugadores (nombre, año_nacimiento, posicion, goles, asistencias, imagen)
 jugadores = [
     ("Steveen Ramon", 1996, "medio centro", 5, 5, "steveenramon.jpg"),
     ("Antony Plazante", 2004, "Mediocampista", 0, 0, "antonyplazante.jpg"),
-    ("Erick Cevallos", 2002, "volante", 0,0, "erickcevallos.jpg"),
+    ("Erick Cevallos", 2002, "volante", 0, 0, "erickcevallos.jpg"),
     ("Elkin Cabezas", 2007, "volante", 0, 0, "elkincabezas.jpg"),
     ("Fabian Diaz", 1995, "Delantero", 4, 3, "fabiandiaz.jpg"),
-    ("jairo Rodriguez", 1986,"Delantero", 6, 5, "steveenramon.jpg"),
+    ("Jairo Rodriguez", 1986, "Delantero", 6, 5, "steveenramon.jpg"),
     ("Jorge Rosero", 2001, "extremo", 0, 5, "jorgerosero.jpg"),
     ("Ronald Aguiño", 1998, "volante", 9, 4, "ronaldaguiño.jpg"),
     ("Ronnie Gallo", 1998, "defensa", 0, 1, "ronniegallo.jpg"),
@@ -22,12 +23,23 @@ jugadores = [
     ("Rony Loor", 1998, "Delantero", 6, 3, "ronyloor.jpg"),
 ]
 
-for nombre, anio, posicion, goles, asistencias, imagen in jugadores:
+# Calcular edad
+def calcular_edad(anio_nacimiento):
+    return date.today().year - anio_nacimiento
+
+# Conectar a Neon
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
+
+# Insertar jugadores
+for nombre, anio_nacimiento, posicion, goles, asistencias, imagen in jugadores:
+    edad = calcular_edad(anio_nacimiento)
     cursor.execute(
-        "INSERT INTO jugadores (nombre, anio_nacimiento, posicion, goles, asistencias, imagen, fecha_ingreso, pdf) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (nombre, anio, posicion, goles, asistencias, imagen, date.today().isoformat(), "")
+        "INSERT INTO jugadores (nombre, edad, posicion, goles, asistencias, imagen) VALUES (%s, %s, %s, %s, %s, %s)",
+        (nombre, edad, posicion, goles, asistencias, imagen)
     )
 
 conn.commit()
+cursor.close()
 conn.close()
-print("✅ 5 jugadores insertados")
+print("✅ 15 jugadores insertados en Neon")
