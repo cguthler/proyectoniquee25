@@ -31,7 +31,7 @@ PDF_PASSWORD = "guthler"   # <-- cambia aquí tu clave
 
 # ---------- BD ----------
 def init_db():
-   conn = psycopg2.connect(os.getenv("SUPABASE_URI")) if RENDER else sqlite3.connect("jugadores.db")
+    conn = psycopg2.connect(os.getenv("SUPABASE_URI")) if RENDER else sqlite3.connect("jugadores.db")
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS jugadores (
@@ -75,9 +75,7 @@ def index():
     cursor = conn.cursor()
     rows = cursor.execute("SELECT * FROM jugadores ORDER BY id DESC").fetchall()
     conn.close()
-    return render_template_string(INDEX_HTML,
-                              jugadores=rows,
-                              PDF_PASSWORD=PDF_PASSWORD)
+    return render_template_string(INDEX_HTML, jugadores=rows, PDF_PASSWORD=PDF_PASSWORD)
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin_login():
@@ -109,17 +107,17 @@ def guardar():
     goles = request.form["goles"]
     asistencias = request.form["asistencias"]
     imagen = ""
-  if "imagen" in request.files:
-    file = request.files["imagen"]
-    if file.filename != "":
-        if RENDER:
-            upload_res = cloudinary_upload(file)
-            imagen = upload_res['secure_url']
-        else:
-            filename = secure_filename(file.filename)
-            path = os.path.join(UPLOAD_IMG, filename)
-            file.save(path)
-            imagen = filename
+    if "imagen" in request.files:
+        file = request.files["imagen"]
+        if file.filename != "":
+            if RENDER:
+                upload_res = cld_upload(file)
+                imagen = upload_res['secure_url']
+            else:
+                filename = secure_filename(file.filename)
+                path = os.path.join(UPLOAD_IMG, filename)
+                file.save(path)
+                imagen = filename
     conn = sqlite3.connect("jugadores.db")
     cursor = conn.cursor()
     cursor.execute(
@@ -133,47 +131,47 @@ def guardar():
 @app.route("/subir_pdf/<int:jugador_id>", methods=["POST"])
 def subir_pdf(jugador_id):
     file = request.files["pdf"]
-   if file and file.filename.endswith(".pdf"):
-    conn = sqlite3.connect("jugadores.db") if not RENDER else psycopg2.connect(os.getenv("SUPABASE_URI"))
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT nombre FROM jugadores WHERE id = %s" if RENDER else "SELECT nombre FROM jugadores WHERE id = ?",
-        (jugador_id,)
-    )
-    row = cursor.fetchone()
-    if not row:
+    if file and file.filename.endswith(".pdf"):
+        conn = sqlite3.connect("jugadores.db") if not RENDER else psycopg2.connect(os.getenv("SUPABASE_URI"))
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT nombre FROM jugadores WHERE id = %s" if RENDER else "SELECT nombre FROM jugadores WHERE id = ?",
+            (jugador_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return "Jugador no encontrado", 404
+        nombre_jugador = row[0]
+
+        if RENDER:
+            upload_res = cld_upload(file, resource_type="raw")
+            filename = upload_res['secure_url']
+        else:
+            filename = f"{nombre_jugador}.pdf"
+            path = os.path.join(UPLOAD_DOCS, filename)
+            file.save(path)
+
+        cursor.execute(
+            "UPDATE jugadores SET pdf = %s WHERE id = %s" if RENDER else "UPDATE jugadores SET pdf = ? WHERE id = ?",
+            (filename, jugador_id)
+        )
+        conn.commit()
         conn.close()
-        return "Jugador no encontrado", 404
-    nombre_jugador = row[0]
-
-    if RENDER:
-        upload_res = cld_upload(file, resource_type="raw")
-        filename = upload_res['secure_url']
-    else:
-        filename = f"{nombre_jugador}.pdf"
-        path = os.path.join(UPLOAD_DOCS, filename)
-        file.save(path)
-
-    cursor.execute(
-        "UPDATE jugadores SET pdf = %s WHERE id = %s" if RENDER else "UPDATE jugadores SET pdf = ? WHERE id = ?",
-        (filename, jugador_id)
-    )
-    conn.commit()
-    conn.close()
-    return redirect(url_for("index"))
-return "Archivo no válido", 400
+        return redirect(url_for("index"))
+    return "Archivo no válido", 400
 
 @app.route("/uploads/<path:name>")
 def serve_img(name):
     if RENDER:
-    return redirect(name)  # name es la URL de Cloudinary
-else:
-    return send_from_directory(UPLOAD_IMG, name)
+        return redirect(name)
+    else:
+        return send_from_directory(UPLOAD_IMG, name)
+
 @app.route('/docs/<name>')
 def serve_pdf(name):
     if not session.get("admin"):
         return "❌ Acceso denegado"
-    
     if RENDER:
         return redirect(name)
     else:
@@ -424,14 +422,14 @@ body{
         Niquee Fútbol Club nació en 2017 en Guayaquil con la filosofía de adoración a Dios, juego limpio y trabajo en equipo.
         Participamos en ligas barriales y torneos locales. ¡Buscamos talento honestidad y lealtad!<br>
         Entrenamientos: lun/mié/vie 18:00-20:00 | Cancha: sintéticas fútbol Garzota samanes<br>
-        Redes: <a href="https://www.facebook.com/share/1CWH1PEHMU/" target="_blank" style="color:#ffff80">Facebook</a>
+        Redes: <a href="https://www.facebook.com/share/1CWH1PEHMU/ " target="_blank" style="color:#ffff80">Facebook</a>
       </p>
     </div>
   </div>
 
   <footer>
     @transguthler&asociados • fonos 593958787986-593992123592<br>
-    cguthler@hotmail.com • <a href="https://www.facebook.com/share/1CWH1PEHMU/" target="_blank" style="color:#ffff80">fb.me/share/1CWH1PEHMU</a><br>
+    cguthler@hotmail.com • <a href="https://www.facebook.com/share/1CWH1PEHMU/ " target="_blank" style="color:#ffff80">fb.me/share/1CWH1PEHMU</a><br>
     Guayaquil – Ecuador
   </footer>
 
